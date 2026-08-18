@@ -1,119 +1,105 @@
-<p align="center">
-  <img src="./.github/readme-assets/signal.gif" alt="Animated signal / product visual for phone-to-pc" width="100%" />
-</p>
+# Phone-to-PC
 
-<h1 align="center">phone-to-pc</h1>
+**Phone-to-PC** is a local-network bridge that lets an Android phone send images to a computer. The repository now contains a more reliable first version of the original gesture proof of concept: a dependency-light Python gateway for the PC and a native Kotlin Android client with a foreground background service.
 
-<p align="center"><strong>Proof-of-concept tool to send screenshots from an Android device running Termux to a PC using MediaPipe-based hand-gesture triggers.</strong></p>
+> The recommended product direction is to make basic transfer reliable first, then add gesture control as an optional second layer. Gesture detection should trigger an upload; it should not be responsible for networking, pairing, storage, and UI all at once.
 
-<p align="center"><code>REPO//SIGNAL</code> · <code>SIGNAL / PRODUCT</code> · <code>LOOPING README EXPERIENCE</code></p>
+## What is included
 
-## Live signal
+| Part | Location | Responsibility |
+| --- | --- | --- |
+| PC gateway | `pc/phone_to_pc_server.py` | Serves the dashboard, authenticates phones with a pairing token, receives uploads, and saves them atomically. |
+| PC dashboard | `pc/static/index.html` | Shows the local URL, pairing token, gateway health, and latest received image. |
+| Android app | `android/` | Kotlin app for pairing, selecting an image, Android Share-menu uploads, and a persistent foreground service. |
+| Legacy gesture prototype | `phone_sender.py`, `pc_receiver.py` | Original Termux + MediaPipe experiment retained for reference. |
+| Tests | `pc/test_phone_to_pc_server.py` | Verifies token protection, safe filenames, and upload persistence. |
 
-| Lens | Readout |
-| --- | --- |
-| Portfolio lane | **SIGNAL / PRODUCT** |
-| Code surface | **3** tracked files observed |
-| Primary materials | **Python, Markdown** |
-| Verification | **0** test-related files observed |
+## How the new architecture works
 
-> A moving scan of the project surface. The animated frame above is a lightweight visual signature; the sections below remain the source of truth for implementation details.
+```text
+┌────────────────────────────┐       Wi-Fi / hotspot       ┌─────────────────────────────┐
+│ Android Kotlin app         │ ───────────────────────────► │ Python PC gateway           │
+│                            │       HTTP POST             │                             │
+│ ForegroundService          │  X-Phone-Token header       │ /api/v1/upload              │
+│ Share menu / image picker  │  X-Filename + image bytes   │ token auth + size limit      │
+└────────────────────────────┘                             └──────────────┬──────────────┘
+                                                                         │
+                                                                         ▼
+                                                               pc/received/*.jpg|png
+                                                                         │
+                                                                         ▼
+                                                                  Local dashboard
+```
 
-## Motion map
+The PC gateway binds to port **8765** by default. It creates a random local pairing token on first run and stores it in `pc/.pairing_token`, which is ignored by Git. The Android service includes that token with each upload. The gateway rejects unauthenticated requests, limits uploads to 25 MB, sanitizes filenames, and writes through a temporary file before replacing it with the completed file.
 
-`SIGNAL` → `SHAPE` → `RELEASE`
+## Run the PC gateway
 
-Use the animated banner as the first signal, then move into the implementation dossier. The recommended next step is to verify the documented setup command against the repository scripts before extending the project.
+From the repository root:
 
-<details open>
-<summary><strong>Open the full project dossier</strong></summary>
+```bash
+cd pc
+python phone_to_pc_server.py
+```
 
-## Overview
-A minimal, two-process proof-of-concept: a phone-side script (phone_sender.py) detects a closed-fist gesture on an Android device running Termux, captures a screenshot via termux-api, and (per code intent) transmits it over TCP to a PC. The PC-side script (pc_receiver.py) runs a TCP listener, saves received image bytes to disk, and concurrently runs MediaPipe hand tracking on the PC webcam to detect an open-palm gesture that automatically opens the most recent received image.
+The terminal prints a dashboard URL and token. Open the dashboard from the PC, note the PC's LAN address, and use an address such as `http://192.168.43.20:8765` in the Android app. On a same-computer test, run with `--host 127.0.0.1` and use `http://127.0.0.1:8765`.
 
-## What it does
-- Detects closed-fist on phone to trigger a screenshot capture and send.
-- Runs a TCP server on the PC to receive and save image bytes.
-- Uses the PC webcam + MediaPipe to detect an open-palm and open the saved image automatically.
-- Uses a simple peer-to-peer TCP approach with basic inter-thread coordination on the PC (threading.Event).
+If the dashboard does not open automatically, visit the printed URL manually. The PC and phone must be connected to the same Wi-Fi network or phone hotspot. A firewall may need an inbound rule for TCP port 8765.
 
-## Key capabilities
-- Phone-side headless gesture detection (MediaPipe) intended for Termux.
-- Screenshot capture on phone via termux-api (termux-camera-photo / termux-api references).
-- PC-side image receiver that writes to a fixed SAVE_PATH (received_capture.png).
-- Cross-platform image opening on the PC (Windows/macOS/Linux handled in code paths).
-- Top-level configuration exposed via constants (e.g., ports, save path, cooldown).
+## Build and run the Android app
 
-## Technology
-- Python 3
-- MediaPipe (mediapipe)
-- OpenCV (cv2 / opencv-python-headless)
-- termux-api (termux-camera-photo, termux-api for screenshots)
-- Pillow (PIL) referenced as a fallback
-- Python stdlib: socket, struct, threading, subprocess, os, platform
+Open the `android/` folder in Android Studio. Let Gradle sync, select an Android device or emulator, and run the `app` configuration. On the app screen:
 
-## Repository structure
-- SETUP_GUIDE.md — (present in repository; contents not included in the supplied excerpts)
-- phone_sender.py — phone-side script intended to run in Termux (gesture detection + capture + send).
-- pc_receiver.py — PC-side TCP server + save + webcam MediaPipe loop to open images.
+1. Enter the PC gateway URL, for example `http://192.168.43.20:8765`.
+2. Enter the pairing token printed by the PC gateway.
+3. Enter a friendly phone name and tap **Save pairing & start service**.
+4. Use **Choose image and send**, or use Android's Share menu and select Phone-to-PC.
 
-## Getting started
-- There are no explicit, complete setup or run commands provided in the supplied excerpts.
-- Check SETUP_GUIDE.md in this repository for any maintainer-provided setup steps.
-- To inspect runtime behavior and configuration, open phone_sender.py and pc_receiver.py:
-  - Look for top-level constants to adjust (examples seen in the code: PC_IP, LISTEN_IP, LISTEN_PORT, SAVE_PATH).
-  - Review how screenshots are captured (termux-api calls) and how image bytes are sent/received over TCP.
-- The repository excerpts do not include packaging, installation scripts, or automated tests.
+The Android app starts `UploadService` as a foreground service. This gives the user-visible Android notification expected for a long-running background connection and allows uploads to continue after leaving the activity. Android may still apply battery restrictions; excluding the app from aggressive battery optimization is recommended on phones that stop background work.
 
-## Configuration
-- Configuration is exposed as top-level constants inside the two main scripts. Relevant names seen in the codebase include:
-  - phone_sender.py: PC_IP (hard-coded destination IP on the phone side)
-  - pc_receiver.py: LISTEN_IP (defaults seen as '0.0.0.0' in excerpts), LISTEN_PORT
-  - SAVE_PATH (received filename; seen as received_capture.png in the code)
-  - Other parameters referenced: COOLDOWN_SECONDS, CAMERA_INDEX
-- To change behavior, edit those constants or add runtime argument parsing (not present in supplied excerpts).
+## Run the tests
 
-## Development and quality notes
-- The repository is a minimal proof-of-concept. The supplied excerpts show:
-  - No unit tests, integration tests, or CI configuration included.
-  - Partial/truncated network send/receive implementations in excerpts (not complete in supplied material).
-  - Hard-coded addresses/ports and a single fixed output filename (overwriting risk).
-  - Limited error handling for network and subprocess operations.
-- Suggested improvements (from static review in repository excerpts):
-  - Add argparse to override runtime settings (IP, ports, save path, camera index, cooldown).
-  - Restrict or make LISTEN_IP configurable (avoid 0.0.0.0 by default).
-  - Implement receive size limits, atomic file writes (temp file + rename), and timestamped filenames.
-  - Add basic authentication or encryption (shared token, TLS) and input validation.
-  - Replace prints with structured logging and improve exception handling.
-  - Add unit tests for deterministic functions (e.g., is_open_palm / is_closed_fist) and integration tests for send/receive.
+The PC gateway uses only the Python standard library:
 
-## Safety and responsible use
-- Important security findings from code excerpts:
-  - Data is sent over unencrypted, unauthenticated TCP—subject to eavesdropping and injection on the same network.
-  - pc_receiver.py defaults to LISTEN_IP = "0.0.0.0" in excerpts, exposing the listener on all interfaces.
-  - Hard-coded PC_IP and fixed SAVE_PATH create risks (accidental overwrites, misuse).
-  - No size checks on received data visible—risk of large transfers, disk exhaustion, or DoS.
-  - Subprocess calls (termux-camera-photo, xdg-open/open) may be risky if file paths can be influenced.
-  - No authentication/pairing—any device that can reach the listening port could send images.
-- Recommended immediate mitigations before running on untrusted networks:
-  - Run the PC listener on loopback or a restricted interface and avoid 0.0.0.0 unless necessary.
-  - Use network isolation when testing (local network you control).
-  - Add maximum payload size checks and atomic saves; avoid using a single fixed filename.
-  - Implement at least a short shared-token authentication or TLS for transports before using across untrusted networks.
+```bash
+cd pc
+python -m unittest -v
+```
 
-## Contributing
-- The repository does not include a CONTRIBUTING.md excerpt. Suggested ways to contribute based on the current codebase:
-  - Improve configuration handling (add argparse, environment variable support).
-  - Harden the network protocol (size limits, authentication, optional TLS).
-  - Replace single fixed SAVE_PATH with timestamped/rotating filenames and atomic writes.
-  - Add unit tests for gesture detection helpers and integration tests for local send/receive.
-  - Improve logging and error handling.
-- To work on any of the above, inspect phone_sender.py and pc_receiver.py to locate the constants and logic you will change, and update SETUP_GUIDE.md with any new or changed setup steps.
+The tests cover token rejection, filename sanitization, and successful byte-for-byte upload saving.
 
-(There is no license file evident in the supplied excerpts; no license section is included here.)
+## API reference
 
-</details>
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/health` | Returns gateway health and latest upload metadata. |
+| `GET` | `/api/v1/pairing` | Returns the current LAN host, port, and local pairing token for the dashboard. |
+| `POST` | `/api/v1/upload` | Accepts an image body with `X-Phone-Token`, `X-Phone-Name`, and `X-Filename` headers. |
+| `GET` | `/received/<filename>` | Serves a previously received file through the local dashboard. |
 
----
+The upload endpoint expects a `Content-Length` header and accepts up to 25 MB. This is a local-network prototype rather than an internet-facing service. Do not expose it directly to the public internet without TLS, stronger identity management, rate limits, and a careful threat model.
 
-<p align="center"><sub>README motion system · visual layer by RepoSignal · implementation details remain project-specific</sub></p>
+## Why the Python + Kotlin idea is good
+
+Your suggested split is the right direction. Python is fast to iterate on for the PC side, where filesystem access, a local HTTP API, automation, and optional computer-vision modules are convenient. Kotlin is the correct native layer for Android because it can use Android's foreground-service rules, Share menu, notification system, permissions, and later CameraX or MediaProjection APIs without depending on Termux.
+
+The important design decision is to keep the boundary small: **Android sends an authenticated file over HTTP; the PC owns storage and automation**. That means either side can evolve independently. For example, a future gesture detector can call the same upload service, and a future PC automation module can consume the saved-file event without changing the Android app.
+
+## Recommended roadmap
+
+| Stage | Feature | Reason |
+| --- | --- | --- |
+| 1 | Pairing, image picker, Share menu, local dashboard | Establishes a dependable end-to-end transfer path. |
+| 2 | Camera capture inside the Android app | Removes the need to select an existing image. |
+| 3 | Optional hand gesture trigger | Adds the original closed-fist idea without making it a hard dependency. |
+| 4 | PC actions such as open, OCR, resize, or save to folders | Turns transfer into a useful automation tool. |
+| 5 | QR-based pairing and encrypted transport | Improves usability and security for broader use. |
+| 6 | Clipboard sync, files, notifications, and remote commands | Expands the project into a local-device productivity bridge. |
+
+## Security notes
+
+The gateway is designed for a trusted LAN. The token protects against casual unauthorized uploads, but the current transport is plain HTTP. Keep the service on a private network, do not port-forward it, and rotate the token by deleting `pc/.pairing_token` and restarting the server if it is exposed. For production-quality remote access, add HTTPS, device-specific keys, explicit pairing approval, and request rate limits.
+
+## Legacy files
+
+`phone_sender.py` and `pc_receiver.py` remain in the root because they document the original Termux and MediaPipe experiment. They are useful for testing gesture recognition, but the new Kotlin app and Python gateway are the recommended path for continued development.

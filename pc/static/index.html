@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Phone-to-PC Gateway</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; background: #0b1020; color: #eef2ff; }
+    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0; }
+    .eyebrow { color: #89a5ff; text-transform: uppercase; letter-spacing: .16em; font-size: 12px; font-weight: 700; }
+    h1 { margin: 10px 0 12px; font-size: clamp(32px, 6vw, 64px); line-height: 1; }
+    p { color: #aab4d0; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 28px; }
+    .card { border: 1px solid #273354; background: #111a30; border-radius: 18px; padding: 20px; }
+    .label { color: #7f8bab; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    code { display: block; color: #d9e2ff; background: #080c18; padding: 12px; margin-top: 9px; border-radius: 10px; overflow-wrap: anywhere; }
+    #preview { width: 100%; max-height: 520px; object-fit: contain; background: #080c18; border-radius: 14px; margin-top: 16px; }
+    .muted { color: #7f8bab; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Signal bridge / local network</div>
+    <h1>Phone-to-PC</h1>
+    <p>Run the Python gateway on the PC, pair the Android app with the token below, and send images over your Wi-Fi or hotspot.</p>
+    <section class="grid">
+      <div class="card"><div class="label">Pairing token</div><code id="token">Loading…</code></div>
+      <div class="card"><div class="label">Upload endpoint</div><code id="endpoint">Loading…</code></div>
+      <div class="card"><div class="label">Gateway status</div><code id="status">Loading…</code></div>
+    </section>
+    <section class="card" style="margin-top:16px">
+      <div class="label">Latest received image</div>
+      <p id="meta" class="muted">No image received yet.</p>
+      <img id="preview" alt="Latest phone upload" hidden />
+    </section>
+  </main>
+  <script>
+    const token = document.querySelector('#token');
+    const endpoint = document.querySelector('#endpoint');
+    const status = document.querySelector('#status');
+    const meta = document.querySelector('#meta');
+    const preview = document.querySelector('#preview');
+    async function refresh() {
+      const pairing = await fetch('/api/v1/pairing').then(r => r.json());
+      token.textContent = pairing.token;
+      endpoint.textContent = `${location.origin}/api/v1/upload`;
+      const health = await fetch('/api/v1/health').then(r => r.json());
+      status.textContent = `${health.upload_count} upload(s) · ${health.last_device || 'waiting'}`;
+      if (health.last_upload) {
+        meta.textContent = `${health.last_upload.original_name} · ${health.last_upload.size.toLocaleString()} bytes · ${health.last_upload.received_at}`;
+        preview.src = health.last_upload.url + `?t=${Date.now()}`;
+        preview.hidden = false;
+      }
+    }
+    refresh().catch(() => { status.textContent = 'Gateway unavailable'; });
+    setInterval(() => refresh().catch(() => {}), 2500);
+  </script>
+</body>
+</html>
