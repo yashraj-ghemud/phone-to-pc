@@ -6,6 +6,8 @@
 
 ## What is included
 
+For the complete Android implementation contract and copy-paste prompt for another coding AI, read [`KOTLIN_APP_BUILD_PROMPT.md`](./KOTLIN_APP_BUILD_PROMPT.md). It contains the exact endpoint paths, headers, Kotlin constants, file names, manifest permissions, foreground-service behavior, Share-menu handling, retry rules, security rules, and testing checklist.
+
 | Part | Location | Responsibility |
 | --- | --- | --- |
 | PC gateway | `pc/phone_to_pc_server.py` | Serves the dashboard, authenticates phones with a pairing token, receives uploads, and saves them atomically. |
