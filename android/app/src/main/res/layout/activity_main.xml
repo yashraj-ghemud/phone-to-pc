@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,15 +14,22 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Phone-to-PC"
-            android:textSize="30sp"
+            android:textAppearance="@style/TextAppearance.AppCompat.Headline"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Pair once, then send images to your PC over Wi-Fi. The foreground service keeps the connection-ready client alive."
+            android:text="Send images from your phone to the Python gateway on your PC over trusted Wi-Fi."
             android:textSize="16sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Keep both devices on the same Wi-Fi or phone hotspot. The local prototype uses HTTP; do not expose it to the public internet."
+            android:textSize="13sp" />
 
         <EditText
             android:id="@+id/serverUrlInput"
@@ -37,8 +45,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:hint="Pairing token from the PC"
-            android:inputType="text"
+            android:hint="Pairing token from the PC terminal"
+            android:inputType="textPassword"
             android:singleLine="true" />
 
         <EditText
@@ -55,21 +63,28 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="Save pairing &amp; start service" />
+            android:text="Save pairing and start service" />
+
+        <Button
+            android:id="@+id/testConnectionButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Test PC connection" />
 
         <Button
             android:id="@+id/pickImageButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:text="Choose image and send" />
 
         <Button
-            android:id="@+id/shareButton"
+            android:id="@+id/stopServiceButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Send from Android share menu" />
+            android:layout_marginTop="10dp"
+            android:text="Stop background service" />
 
         <TextView
             android:id="@+id/statusText"
@@ -77,6 +92,22 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="Not paired yet"
-            android:textSize="15sp" />
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lastUploadText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Latest upload: none"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Tip: In Gallery, tap Share and choose Phone-to-PC to send without opening this screen."
+            android:textSize="13sp" />
     </LinearLayout>
 </ScrollView>

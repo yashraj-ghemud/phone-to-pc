@@ -6,7 +6,14 @@ For the complete implementation contract and a copy-paste prompt for another cod
 
 ## Open and run
 
-Open this `android/` folder in Android Studio. Allow Gradle to sync, connect an Android device or start an emulator, and run the `app` configuration. The current local prototype uses an HTTP PC server, so the app manifest allows cleartext traffic for trusted Wi-Fi/hotspot testing.
+Open this `android/` folder in Android Studio. Allow Gradle to sync, connect an Android device or start an emulator, and run the `app` configuration. The project includes the Gradle wrapper, so from a terminal you can also run:
+
+```bash
+cd android
+./gradlew testDebugUnitTest assembleDebug
+```
+
+The debug APK is generated at `android/app/build/outputs/apk/debug/app-debug.apk`. The current local prototype uses an HTTP PC server, so the app manifest allows cleartext traffic for trusted Wi-Fi/hotspot testing.
 
 Start the PC first:
 
@@ -23,9 +30,13 @@ http://192.168.43.20:8765
 
 in the Android app. The phone and PC must be on the same Wi-Fi network or phone hotspot. Save pairing, test the connection, select a small image, and send it. The resulting file appears in `../pc/received/` and in the PC dashboard.
 
-## Current starter behavior
+## Implemented Android files
 
-The starter app supports pairing, image picking, Share-menu image intake, and a foreground upload service. The Python server expects the image as a raw HTTP request body with these headers:
+The completed client now includes `MainActivity.kt`, `PairingStore.kt`, `GatewayApiClient.kt`, `FileMetadataReader.kt`, `NotificationHelper.kt`, `UploadService.kt`, and `BootReceiver.kt`. It also includes a JVM test for URL normalization and a Gradle wrapper for repeatable builds.
+
+## Current behavior
+
+The app supports pairing, health testing, image picking, Share-menu image intake, a foreground upload service, bounded retries for temporary network failures, file-size validation, and boot recovery. The Python server expects the image as a raw HTTP request body with these headers:
 
 ```text
 X-Phone-Token: <pairing token>
